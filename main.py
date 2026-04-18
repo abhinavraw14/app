@@ -1,12 +1,11 @@
 from fastapi import FastAPI, UploadFile, File
 import pandas as pd
 
-# Object creation for FastAPI class
-app = FastAPI() # app -> object for class FastAPI
+app = FastAPI()
 
-@app.get("/") # / -> home page
-def home(): #home page
-  return {"message: Backend is running"}
+@app.get("/")
+def home():
+    return {"message": "Backend is running"}
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
@@ -18,10 +17,6 @@ async def upload_csv(file: UploadFile = File(...)):
 
         df = pd.read_csv("temp.csv")
 
-        # 👉 SIMPLE BAR CHART LOGIC
-        # Take first column as category
-        # Second column as values
-
         columns = df.columns.tolist()
 
         if len(columns) < 2:
@@ -30,22 +25,56 @@ async def upload_csv(file: UploadFile = File(...)):
         x_col = columns[0]
         y_col = columns[1]
 
-        # Convert to chart-friendly format
-        chart_data = []
+        # Ensure numeric conversion (important 🔥)
+        df[x_col] = pd.to_numeric(df[x_col], errors='coerce')
+        df[y_col] = pd.to_numeric(df[y_col], errors='coerce')
 
+        # Drop invalid rows
+        df = df.dropna(subset=[x_col, y_col])
+
+        # =========================
+        # ✅ BAR CHART
+        # =========================
+        bar_data = []
         for _, row in df.iterrows():
-            chart_data.append({
-                "name": str(row[x_col]),
+            bar_data.append({
+                "name": str(int(row[x_col])) if row[x_col].is_integer() else str(row[x_col]),
                 "value": float(row[y_col])
             })
 
+        # =========================
+        # ✅ SCATTER PLOT
+        # =========================
+        scatter_data = []
+        for _, row in df.iterrows():
+            scatter_data.append({
+                "x": float(row[x_col]),
+                "y": float(row[y_col])
+            })
+
+        # =========================
+        # ✅ LINE CHART
+        # =========================
+        line_data = []
+        df_sorted = df.sort_values(by=x_col)
+
+        for _, row in df_sorted.iterrows():
+            line_data.append({
+                "x": float(row[x_col]),
+                "y": float(row[y_col])
+            })
+
+        # =========================
+        # ✅ FINAL RESPONSE
+        # =========================
         return {
             "columns": columns,
-            "chart_data": chart_data,
             "x_col": x_col,
-            "y_col": y_col
+            "y_col": y_col,
+            "bar_chart": bar_data,
+            "scatter_chart": scatter_data,
+            "line_chart": line_data
         }
 
     except Exception as e:
         return {"error": str(e)}
-
